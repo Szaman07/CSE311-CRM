@@ -42,7 +42,7 @@ Candidate keys: (Student,Course) and (Student,Instructor). All attributes are pr
 
 Decompose into (Instructor,Course) and (Student,Instructor). It is lossless because common Instructor determines the first relation. But (Student,Course) -> Instructor is not enforceable from the two local FD sets alone. A joined check could be needed. Losslessness and dependency preservation are different properties.
 
-## Apply to NexaStock
+## Apply to CRM
 
 ProductID does not determine a historical sale item's unit_price across different sales. Treating current price and historical price as one fact creates incorrect FDs. The movement model deliberately repeats product_id for linked items and caches resulting balances; see [data-design tradeoffs](../docs/DATABASE_DESIGN.md). Never claim every table is universally 3NF just because fields look separated.
 

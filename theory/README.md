@@ -1,6 +1,6 @@
 # CSE311 and full-stack learning guide
 
-The examples target NexaStock's [implemented inventory schema](../docs/DATABASE_DESIGN.md); the existing root app/sql directories still contain the old CRM. Run inventory exercises only against the isolated NexaStock database.
+The examples target CRM's [implemented inventory schema](../docs/DATABASE_DESIGN.md); the existing root app/sql directories contain the initial prototype. Run inventory exercises only against the isolated CRM database.
 
 This is a structured study companion, not a replacement for lectures, your rubric, or the textbook. Work problems before looking at answers. Prefer the instructor's notation and assigned chapters. Author materials: [Database System Concepts](https://www.db-book.com/).
 

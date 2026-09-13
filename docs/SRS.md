@@ -1,4 +1,4 @@
-# Software requirements specification — NexaStock
+# Software requirements specification — CRM
 
 Version 2.1, 13 September 2026. This document defines required behavior. Implementation and executed evidence are tracked separately in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 

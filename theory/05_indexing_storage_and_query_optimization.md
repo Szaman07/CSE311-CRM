@@ -20,7 +20,7 @@ Sargability: compare created_at >= :start AND created_at < :end rather than wrap
 
 Nested-loop join probes inner data for each outer row; an appropriate inner key helps. Hash/merge join availability and chosen plans vary by engine/version. Optimization uses statistics and cost estimates; estimates can be wrong because of skew, correlation or stale stats.
 
-For NexaStock, compare EXPLAIN for completed sales in a date range before/after the proposed index in an isolated experiment. Record access type, chosen key, estimated rows and join order. Runtime-plan commands differ between MariaDB/MySQL/PostgreSQL; consult the installed engine docs before issuing them. Some ANALYZE variants execute the query.
+For CRM, compare EXPLAIN for completed sales in a date range before/after the proposed index in an isolated experiment. Record access type, chosen key, estimated rows and join order. Runtime-plan commands differ between MariaDB/MySQL/PostgreSQL; consult the installed engine docs before issuing them. Some ANALYZE variants execute the query.
 
 Pre-aggregate independent children before joining. An index cannot repair wrong aggregation semantics.
 

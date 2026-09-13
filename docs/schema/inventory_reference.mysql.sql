@@ -1,4 +1,4 @@
--- NexaStock reference schema, synchronized 2026-09-12 with reviewed Laravel migrations.
+-- CRM reference schema, synchronized 2026-09-12 with reviewed Laravel migrations.
 -- Select a NEW EMPTY disposable database explicitly before importing.
 -- No DROP/CREATE DATABASE/USE. InnoDB; strict SQL mode; UTC connection.
 -- CHECK enforcement, FKs, binary uniqueness, views and migrations passed on XAMPP MariaDB 10.4.32.

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('content')
 <section class="auth-card">
-    <h1>Sign in to NexaStock</h1>
+    <h1>Sign in to CRM</h1>
     <p>Use a locally provisioned manager or sales clerk account.</p>
     <form method="post" action="{{ route('login.store') }}" class="stack">
         @csrf

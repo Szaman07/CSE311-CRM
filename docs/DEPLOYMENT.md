@@ -19,7 +19,7 @@ The runtime account needs SELECT on the schema, INSERT/UPDATE on users/categorie
 5. Smoke-test anonymous login redirect, login, product list, one isolated reversible workflow, reports, built asset responses, and reconciliation. Leave maintenance mode.
 6. Watch application/web/database logs and 5xx rates. Rotate logs and alert on repeated failed reconciliation. Do not log passwords, cookies, CSRF tokens, or customer records.
 
-A shallow liveness check can confirm the process serves the login page. Readiness should be an authenticated/privately monitored query that verifies database access without returning engine details. NexaStock deliberately exposes no public diagnostic `/up` endpoint.
+A shallow liveness check can confirm the process serves the login page. Readiness should be an authenticated/privately monitored query that verifies database access without returning engine details. CRM deliberately exposes no public diagnostic `/up` endpoint.
 
 File sessions and cache require persistent local writable storage and one application instance. Before adding replicas, move sessions/cache to a supported shared store and retest expiry, CSRF, idempotency, and failure handling. No queue or scheduled job is currently required.
 
@@ -28,4 +28,3 @@ File sessions and cache require persistent local writable storage and one applic
 `deploy/backup.ps1` uses `mysqldump --single-transaction` and prompts for its credential; keep dumps encrypted/private and off-host with a retention policy. `deploy/restore-verify.ps1` refuses ordinary database names and restores only into an explicitly prepared `nexastock_restore_*` database. Inspect the dump, restore in isolation, run counts/reconciliation/login checks, record duration, and delete the drill database only after review. Schema changes must not overlap the logical backup.
 
 A PostgreSQL move is a later engineering project: write PostgreSQL migrations, export/transform/import data, validate IDs/decimals/timestamps/constraints/indexes, and rerun concurrency, privilege, report, and reconciliation tests. Changing `DB_CONNECTION` is insufficient.
-

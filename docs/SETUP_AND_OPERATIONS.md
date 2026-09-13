@@ -1,6 +1,6 @@
 # Setup, migration and operations runbook
 
-Executed local runbook plus clean-machine instructions. Laravel is implemented under `inventory/` with real lockfiles. Existing root `app/` and `sql/` remain a separate CRM prototype; `sql/01_schema.sql` drops its own database and must not be imported for NexaStock. Instructor approval of Laravel remains an academic acceptance gate.
+Executed local runbook plus clean-machine instructions. Laravel is implemented under `inventory/` with real lockfiles. Existing root `app/` and `sql/` remain a separate initial prototype; `sql/01_schema.sql` drops its own database and must not be imported for CRM. Instructor approval of Laravel remains an academic acceptance gate.
 
 ## 1. Record the actual environment
 

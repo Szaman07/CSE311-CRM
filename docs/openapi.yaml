@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: NexaStock same-origin API
+  title: CRM same-origin API
   version: 1.0.0
   description: Session-authenticated JSON adapter over the same services used by Blade. Money and IDs are strings; timestamps are ISO 8601 with offsets.
 servers:

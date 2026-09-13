@@ -1,6 +1,6 @@
 # Documentation review record
 
-Baseline specification: 9 September 2026. Implementation synchronization: 12 September 2026. The root CRM remains preserved; NexaStock lives under `inventory/`.
+Baseline specification: 9 September 2026. Implementation synchronization: 12 September 2026. The initial root prototype remains preserved; CRM lives under `inventory/`.
 
 ## Completed passes
 
@@ -23,4 +23,3 @@ python audit/reproduce_current_findings.py
 The first checker validates local links, requirement IDs, seven DDL tables, constraint names, and sale-contract fixtures. The second preserves a reproducible join-multiplication lesson from the old CRM. Neither substitutes for Laravel/MariaDB tests. Current runtime status and open gates are in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 The remaining review boundaries are explicit: instructor approval, independent backup/restore, NFR-04 benchmark, responsive/keyboard visual evidence, a real Linux target, PostgreSQL/React parity, and the student's unseen SQL/viva performance. Reopen the SRS and documents when the instructor changes scope; do not silently expand the business model.
-

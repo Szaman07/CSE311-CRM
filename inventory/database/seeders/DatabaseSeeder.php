@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             throw new RuntimeException('Seeder requires an empty business schema and will not overwrite existing data.');
         }
 
-        $manager = User::create(['name' => 'NexaStock Manager', 'email' => 'manager@nexastock.local', 'password' => Hash::make(env('NEXASTOCK_DEMO_PASSWORD')), 'role' => 'manager', 'is_active' => true]);
+        $manager = User::create(['name' => 'CRM Manager', 'email' => 'manager@nexastock.local', 'password' => Hash::make(env('NEXASTOCK_DEMO_PASSWORD')), 'role' => 'manager', 'is_active' => true]);
         User::create(['name' => 'Sales Clerk One', 'email' => 'clerk@nexastock.local', 'password' => Hash::make(env('NEXASTOCK_DEMO_PASSWORD')), 'role' => 'sales_clerk', 'is_active' => true]);
         User::create(['name' => 'Sales Clerk Two', 'email' => 'clerk2@nexastock.local', 'password' => Hash::make(env('NEXASTOCK_DEMO_PASSWORD')), 'role' => 'sales_clerk', 'is_active' => true]);
 
