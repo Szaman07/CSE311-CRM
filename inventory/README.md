@@ -1,6 +1,6 @@
-# CRM application
+# NexaStock application
 
-Laravel 12.69.2 application for the seven-table CRM inventory domain. PHP dependencies are locked in `composer.lock`; browser dependencies are locked in `package-lock.json`.
+Laravel 12.69.2 application for the seven-table NexaStock inventory domain. PHP dependencies are locked in `composer.lock`; browser dependencies are locked in `package-lock.json`.
 
 ```powershell
 & 'C:/xampp/php/php.exe' artisan migrate
@@ -20,3 +20,4 @@ Administrative users are managed without public UI or passwords in shell history
 ```
 
 See the root [setup runbook](../docs/SETUP_AND_OPERATIONS.md), [API handoff](../docs/FRONTEND_INTEGRATION.md), and [implementation evidence](../docs/IMPLEMENTATION_STATUS.md).
+
