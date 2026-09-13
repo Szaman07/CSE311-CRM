@@ -1,0 +1,12 @@
+*.sql.gz
+*.dump
+nexastock-backup*.sql
+backups/
+.DS_Store
+Thumbs.db
+
+# Local review material and generated working files are not publication assets.
+/CV/
+/website pictures inspiration/
+/archive/
+/inventory/tmp/

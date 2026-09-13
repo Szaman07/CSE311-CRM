@@ -1,0 +1,42 @@
+name: NexaStock CI
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.4.32
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nexastock_test
+          MYSQL_USER: nexastock_test
+          MYSQL_PASSWORD: test-only-password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: inventory
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: {php-version: '8.2', extensions: mbstring, pdo_mysql, intl, xml, curl, zip, coverage: none}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm, cache-dependency-path: inventory/package-lock.json}
+      - run: composer install --no-interaction --prefer-dist
+      - run: npm ci
+      - run: npm run build
+      - name: Configure isolated test environment
+        run: |
+          cp .env.example .env.testing
+          php artisan key:generate --env=testing
+          sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env.testing
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=nexastock_test/' .env.testing
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=nexastock_test/' .env.testing
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=test-only-password/' .env.testing
+      - run: vendor/bin/pint --test
+      - run: php artisan test
+      - run: npx redocly lint ../docs/openapi.yaml --config ../docs/redocly.yaml
+      - run: composer audit
+      - run: npm audit --audit-level=high

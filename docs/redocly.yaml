@@ -1,0 +1,5 @@
+extends:
+  - minimal
+rules:
+  tag-description: off
+  operation-operationId: off

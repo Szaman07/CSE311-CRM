@@ -1,0 +1,246 @@
+openapi: 3.1.0
+info:
+  title: NexaStock same-origin API
+  version: 1.0.0
+  description: Session-authenticated JSON adapter over the same services used by Blade. Money and IDs are strings; timestamps are ISO 8601 with offsets.
+servers:
+  - url: http://127.0.0.1:8080/api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Auth
+  - name: Categories
+  - name: Products
+  - name: Customers
+  - name: Sales
+  - name: Reports
+paths:
+  /login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Start a session; limited to five attempts per minute
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Login'}}}}
+      responses:
+        '200': {description: Authenticated user, content: {application/json: {schema: {$ref: '#/components/schemas/UserEnvelope'}}}}
+        '422': {$ref: '#/components/responses/ValidationOrCredentials'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate session and rotate CSRF token
+      responses: {'204': {description: Logged out}, '419': {$ref: '#/components/responses/Csrf'}}
+  /me:
+    get:
+      tags: [Auth]
+      summary: Get current active user
+      responses: {'200': {description: Current user, content: {application/json: {schema: {$ref: '#/components/schemas/UserEnvelope'}}}}, '401': {$ref: '#/components/responses/Unauthenticated'}}
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List categories
+      parameters: [{$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PerPage'}]
+      responses: {'200': {$ref: '#/components/responses/Paginated'}}
+    post:
+      tags: [Categories]
+      summary: Create a category (manager)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryWrite'}}}}
+      responses: {'201': {$ref: '#/components/responses/Resource'}, '403': {$ref: '#/components/responses/Forbidden'}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /categories/{category}:
+    patch:
+      tags: [Categories]
+      summary: Edit a category with optimistic version (manager)
+      parameters: [{$ref: '#/components/parameters/CategoryId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryEdit'}}}}
+      responses: {'200': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /categories/{category}/archive:
+    $ref: '#/components/pathItems/CategoryState'
+  /categories/{category}/restore:
+    $ref: '#/components/pathItems/CategoryState'
+  /products:
+    get:
+      tags: [Products]
+      summary: Search and list products
+      parameters:
+        - {name: q, in: query, schema: {type: string, maxLength: 100}}
+        - {name: state, in: query, schema: {type: string, enum: [active, archived, all], default: active}}
+        - {name: sort, in: query, schema: {type: string, enum: [name, sku, stock, price], default: name}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses: {'200': {$ref: '#/components/responses/Paginated'}}
+    post:
+      tags: [Products]
+      summary: Create a zero-stock product (manager)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProductWrite'}}}}
+      responses: {'201': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /products/{product}:
+    get:
+      tags: [Products]
+      summary: Get a product
+      parameters: [{$ref: '#/components/parameters/ProductId'}]
+      responses: {'200': {$ref: '#/components/responses/Resource'}, '404': {$ref: '#/components/responses/NotFound'}}
+    patch:
+      tags: [Products]
+      summary: Edit product metadata with optimistic version (manager)
+      parameters: [{$ref: '#/components/parameters/ProductId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProductEdit'}}}}
+      responses: {'200': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /products/{product}/archive:
+    $ref: '#/components/pathItems/ProductState'
+  /products/{product}/restore:
+    $ref: '#/components/pathItems/ProductState'
+  /products/{product}/restocks:
+    post:
+      tags: [Products]
+      summary: Append an idempotent stock receipt (manager)
+      parameters: [{$ref: '#/components/parameters/ProductId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Restock'}}}}
+      responses: {'200': {description: Exact replay}, '201': {description: Created movement}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /products/{product}/adjustments:
+    post:
+      tags: [Products]
+      summary: Append an idempotent versioned correction (manager)
+      parameters: [{$ref: '#/components/parameters/ProductId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Adjustment'}}}}
+      responses: {'200': {description: Exact replay}, '201': {description: Created movement}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /products/{product}/movements:
+    get:
+      tags: [Products]
+      summary: Get append-only movement history
+      parameters: [{$ref: '#/components/parameters/ProductId'}, {$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PerPage'}]
+      responses: {'200': {$ref: '#/components/responses/Paginated'}}
+  /customers:
+    get:
+      tags: [Customers]
+      summary: Search and list customers
+      parameters: [{name: q, in: query, schema: {type: string, maxLength: 100}}, {$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PerPage'}]
+      responses: {'200': {$ref: '#/components/responses/Paginated'}}
+    post:
+      tags: [Customers]
+      summary: Create a customer (active staff)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerWrite'}}}}
+      responses: {'201': {$ref: '#/components/responses/Resource'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /customers/{customer}:
+    get:
+      tags: [Customers]
+      summary: Get current customer record
+      parameters: [{$ref: '#/components/parameters/CustomerId'}]
+      responses: {'200': {$ref: '#/components/responses/Resource'}, '404': {$ref: '#/components/responses/NotFound'}}
+    patch:
+      tags: [Customers]
+      summary: Edit a customer with optimistic version (active staff)
+      parameters: [{$ref: '#/components/parameters/CustomerId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEdit'}}}}
+      responses: {'200': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /customers/{customer}/archive:
+    $ref: '#/components/pathItems/CustomerState'
+  /customers/{customer}/restore:
+    $ref: '#/components/pathItems/CustomerState'
+  /customers/{customer}/sales:
+    get:
+      tags: [Customers]
+      summary: List all linked sales, including cancelled
+      parameters: [{$ref: '#/components/parameters/CustomerId'}, {$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PerPage'}]
+      responses: {'200': {$ref: '#/components/responses/Paginated'}}
+  /sales:
+    get:
+      tags: [Sales]
+      summary: Search/filter receipts with deterministic newest-first order
+      parameters: [{name: q, in: query, schema: {type: string, maxLength: 100}}, {name: status, in: query, schema: {type: string, enum: [completed, cancelled]}}, {$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PerPage'}]
+      responses: {'200': {$ref: '#/components/responses/Paginated'}}
+    post:
+      tags: [Sales]
+      summary: Atomically record an idempotent sale (active staff)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SaleWrite'}, example: {request_key: 3f53d4ce-5d53-4b54-b26d-5cb63c6fbdd7, customer_id: null, items: [{product_id: 1, quantity: 2, expected_unit_price: '10.00'}]}}}}
+      responses: {'200': {description: Exact replay, content: {application/json: {schema: {$ref: '#/components/schemas/SaleEnvelope'}}}}, '201': {description: Created sale, content: {application/json: {schema: {$ref: '#/components/schemas/SaleEnvelope'}}}}, '409': {$ref: '#/components/responses/Conflict'}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /sales/{sale}:
+    get:
+      tags: [Sales]
+      summary: Get receipt snapshots and exact derived total
+      parameters: [{$ref: '#/components/parameters/SaleId'}]
+      responses: {'200': {description: Receipt, content: {application/json: {schema: {$ref: '#/components/schemas/SaleEnvelope'}}}}, '404': {$ref: '#/components/responses/NotFound'}}
+  /sales/{sale}/cancel:
+    post:
+      tags: [Sales]
+      summary: Cancel and restore a sale exactly once (manager)
+      parameters: [{$ref: '#/components/parameters/SaleId'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [reason], properties: {reason: {type: string, minLength: 1, maxLength: 500}}}}}}
+      responses: {'200': {description: Cancelled sale or harmless repeated cancellation}, '403': {$ref: '#/components/responses/Forbidden'}, '409': {$ref: '#/components/responses/Conflict'}}
+  /reports/{report}:
+    get:
+      tags: [Reports]
+      summary: Read an inventory, low-stock, completed-sales, top-product, or reconciliation report
+      parameters:
+        - {name: report, in: path, required: true, schema: {type: string, enum: [inventory, low-stock, sales-value, top-products, reconciliation]}}
+        - {name: start, in: query, description: Asia/Dhaka calendar date, schema: {type: string, format: date}}
+        - {name: end, in: query, description: Inclusive Asia/Dhaka calendar date, schema: {type: string, format: date}}
+        - {name: state, in: query, schema: {type: string, enum: [active, archived, all]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 10}}
+      responses: {'200': {description: Report result}, '422': {$ref: '#/components/responses/ValidationOrCredentials'}}
+  /reports/inventory.csv:
+    get:
+      tags: [Reports]
+      summary: Export formula-neutralized inventory CSV (manager)
+      responses: {'200': {description: CSV download, content: {text/csv: {schema: {type: string}}}}, '403': {$ref: '#/components/responses/Forbidden'}}
+components:
+  securitySchemes:
+    sessionCookie: {type: apiKey, in: cookie, name: nexastock_session}
+  parameters:
+    Page: {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+    PerPage: {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    CategoryId: {name: category, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    ProductId: {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    CustomerId: {name: customer, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    SaleId: {name: sale, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+  pathItems:
+    CategoryState:
+      post:
+        tags: [Categories]
+        summary: Change category archive state (manager); already-in-state is a no-op
+        parameters: [{$ref: '#/components/parameters/CategoryId'}]
+        requestBody: {$ref: '#/components/requestBodies/Version'}
+        responses: {'200': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}}
+    ProductState:
+      post:
+        tags: [Products]
+        summary: Change product archive state (manager); archive requires zero stock
+        parameters: [{$ref: '#/components/parameters/ProductId'}]
+        requestBody: {$ref: '#/components/requestBodies/Version'}
+        responses: {'200': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}}
+    CustomerState:
+      post:
+        tags: [Customers]
+        summary: Change customer archive state (manager)
+        parameters: [{$ref: '#/components/parameters/CustomerId'}]
+        requestBody: {$ref: '#/components/requestBodies/Version'}
+        responses: {'200': {$ref: '#/components/responses/Resource'}, '409': {$ref: '#/components/responses/Conflict'}}
+  requestBodies:
+    Version: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Version'}}}}
+  responses:
+    Resource: {description: Resource envelope, content: {application/json: {schema: {type: object, required: [data], properties: {data: {type: object}}}}}}
+    Paginated: {description: Bounded paginated resource collection, content: {application/json: {schema: {type: object, required: [data, meta], properties: {data: {type: array, items: {type: object}}, meta: {type: object}}}}}}
+    Unauthenticated: {description: Missing or expired session, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    Forbidden: {description: Role or active-state denial, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    NotFound: {description: Missing resource, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    Conflict: {description: 'Version, price, stock, eligibility, integrity, or idempotency conflict', content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    Csrf: {description: Missing or invalid CSRF token, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    RateLimited: {description: Login throttle reached, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    ValidationOrCredentials: {description: Invalid credentials or fields, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  schemas:
+    Id: {type: string, pattern: '^[1-9][0-9]*$', examples: ['1']}
+    Money: {type: string, pattern: '^(0|[1-9][0-9]{0,7})\.[0-9]{2}$', examples: ['10.00']}
+    Uuid: {type: string, format: uuid}
+    Version: {type: object, required: [expected_version], properties: {expected_version: {type: integer, minimum: 1}}}
+    Login: {type: object, additionalProperties: false, required: [email, password], properties: {email: {type: string, format: email}, password: {type: string}}}
+    UserEnvelope: {type: object, required: [data], properties: {data: {type: object, required: [user, csrf_token], properties: {user: {type: object, required: [id, name, email, role], properties: {id: {$ref: '#/components/schemas/Id'}, name: {type: string}, email: {type: string}, role: {type: string, enum: [manager, sales_clerk]}}}, csrf_token: {type: string, description: Rotated session CSRF token}}}}}
+    CategoryWrite: {type: object, additionalProperties: false, required: [name], properties: {name: {type: string, minLength: 1, maxLength: 80}}}
+    CategoryEdit: {allOf: [{$ref: '#/components/schemas/CategoryWrite'}, {$ref: '#/components/schemas/Version'}]}
+    ProductWrite: {type: object, additionalProperties: false, required: [category_id, sku, name, unit_price, reorder_level], properties: {category_id: {type: integer, minimum: 1}, sku: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}, name: {type: string, maxLength: 150}, unit_price: {$ref: '#/components/schemas/Money'}, reorder_level: {type: integer, minimum: 0, maximum: 1000000000}}}
+    ProductEdit: {allOf: [{$ref: '#/components/schemas/ProductWrite'}, {$ref: '#/components/schemas/Version'}]}
+    CustomerWrite: {type: object, additionalProperties: false, required: [full_name], properties: {full_name: {type: string, maxLength: 120}, email: {type: [string, 'null'], format: email, maxLength: 255}, phone: {type: [string, 'null'], maxLength: 30}}}
+    CustomerEdit: {allOf: [{$ref: '#/components/schemas/CustomerWrite'}, {$ref: '#/components/schemas/Version'}]}
+    Restock: {type: object, additionalProperties: false, required: [request_key, quantity, note], properties: {request_key: {$ref: '#/components/schemas/Uuid'}, quantity: {type: integer, minimum: 1, maximum: 1000000}, note: {type: string, minLength: 1, maxLength: 500}}}
+    Adjustment: {type: object, additionalProperties: false, required: [request_key, quantity_delta, note, expected_version], properties: {request_key: {$ref: '#/components/schemas/Uuid'}, quantity_delta: {type: integer, minimum: -1000000, maximum: 1000000, not: {const: 0}}, note: {type: string, minLength: 1, maxLength: 500}, expected_version: {type: integer, minimum: 1}}}
+    SaleWrite: {type: object, additionalProperties: false, required: [request_key, items], properties: {request_key: {$ref: '#/components/schemas/Uuid'}, customer_id: {oneOf: [{$ref: '#/components/schemas/Id'}, {type: 'null'}]}, items: {type: array, minItems: 1, maxItems: 100, items: {type: object, additionalProperties: false, required: [product_id, quantity, expected_unit_price], properties: {product_id: {type: integer, minimum: 1}, quantity: {type: integer, minimum: 1, maximum: 1000000}, expected_unit_price: {$ref: '#/components/schemas/Money'}}}}}}
+    SaleEnvelope: {type: object, required: [data], properties: {data: {type: object, description: 'Serialized receipt with string IDs, snapshot line items, status, exact total, and offset timestamps'}, replayed: {type: boolean}}}
+    ErrorEnvelope: {type: object, required: [error], properties: {error: {type: object, required: [code, message], properties: {code: {type: string}, message: {type: string}, fields: {type: object, additionalProperties: {type: array, items: {type: string}}}, context: {type: object}, request_id: {type: [string, 'null'], format: uuid}}}}}

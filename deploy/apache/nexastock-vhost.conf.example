@@ -1,0 +1,14 @@
+Listen 8080
+<VirtualHost 127.0.0.1:8080>
+    ServerName 127.0.0.1
+    DocumentRoot "E:/study/Projects/CSE311/inventory/public"
+
+    <Directory "E:/study/Projects/CSE311/inventory/public">
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require local
+    </Directory>
+
+    ErrorLog "logs/nexastock-error.log"
+    CustomLog "logs/nexastock-access.log" combined
+</VirtualHost>

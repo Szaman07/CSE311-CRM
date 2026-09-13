@@ -1,0 +1,16 @@
+{
+  "request_key": "107e9bce-481c-4d58-8ec8-cd741ce13829",
+  "customer_id": null,
+  "items": [
+    {
+      "product_id": "1",
+      "quantity": 2,
+      "expected_unit_price": "10.00"
+    },
+    {
+      "product_id": "2",
+      "quantity": 1,
+      "expected_unit_price": "50.00"
+    }
+  ]
+}
