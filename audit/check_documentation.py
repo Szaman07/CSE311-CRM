@@ -9,12 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 errors = []
 def check(condition, message):
     if not condition: errors.append(message)
-files = [ROOT / "README.md", ROOT / "AUDIT_VERDICT_AND_12_WEEK_PLAN.md"]
+files = [ROOT / "README.md", ROOT / "inventory/README.md"]
 files += sorted((ROOT / "docs").rglob("*.md")) + sorted((ROOT / "theory").rglob("*.md"))
-files += [ROOT / "archive/README.md"]
 link_count = 0
 fence = chr(96) * 3
 for path in files:
+    if not path.is_file():
+        check(False, f"Missing required document: {path.relative_to(ROOT)}")
+        continue
     body = path.read_text(encoding="utf-8-sig")
     check(body.count("\n" + fence) % 2 == 0, f"Unbalanced fences: {path.name}")
     prose = re.sub(fence + r"[\s\S]*?" + fence, "", body)
