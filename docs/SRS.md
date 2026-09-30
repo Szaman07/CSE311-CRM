@@ -1,12 +1,12 @@
 # Software requirements specification — CRM
 
-Version 2.1, 13 September 2026. This document defines required behavior. Implementation and executed evidence are tracked separately in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+Version 2.2, 30 September 2026. This document defines required behavior. Implementation and executed evidence are tracked separately in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 ## Purpose and constraints
 
 A store's staff manages products and customers, records stock receipts/corrections, sells available products, and inspects a stock ledger. A manager can cancel a whole sale, restoring stock once.
 
-Confirmed: three months; XAMPP mandatory; SQL needs relearning; JavaScript/React are learning goals; PostgreSQL later. Team size, weekly availability, exact rubric, allowed frameworks, and installed runtime versions remain unknown. Plan assumes one primary learner and approximately 12–15 focused hours/week; revise the schedule if actual availability differs.
+Confirmed: three months; XAMPP mandatory; SQL needs relearning; JavaScript/React are learning goals; PostgreSQL later. Local runtime versions are recorded in [ENVIRONMENT_EVIDENCE.md](ENVIRONMENT_EVIDENCE.md). Team size, weekly availability, exact rubric, and instructor approval of Laravel remain unknown. Plan assumes one primary learner and approximately 12–15 focused hours/week; revise the schedule if actual availability differs.
 
 Seven business tables: users, categories, products, customers, sales, sale_items, stock_movements. BDT is a fixed demonstration currency; quantities are whole units. No payments, tax, discounts, supplier procurement, warehouses, reservations, partial returns, or inventory valuation accounting. The receipt records a sale, not proof of payment.
 
@@ -30,7 +30,7 @@ Signed-out users can only reach login. Users are seeded/provisioned administrati
 
 - BR-01: SKU is trimmed, uppercased ASCII, 1–64 characters from A–Z, 0–9, hyphen, underscore; unique even after archival. Product names need not be unique. Category names are trimmed lowercase Unicode, 1–80 characters, unique under the specified binary collation.
 - BR-02: New products begin with zero stock. Opening balances are posted as restock movements. Direct stock editing is forbidden.
-- BR-03: Stock is 0–1,000,000,000 units. Sale/restock quantities are 1–1,000,000. Corrections are nonzero signed deltas with absolute value at most 1,000,000. No operation may create negative stock or exceed the stock ceiling.
+- BR-03: Stock is 0–1,000,000,000 units. Sale/restock quantities are 1–1,000,000. Corrections are nonzero signed deltas with absolute value at most 1,000,000. Reject fractional, boolean, exponent, and overflowing integer inputs; never silently truncate them. No operation may create negative stock or exceed the stock ceiling.
 - BR-04: A submitted cart has 1–100 rows; merge duplicate product IDs, then validate each combined quantity and at most 100 distinct products. Conflicting expected prices for duplicate IDs are invalid.
 - BR-05: Unit price is an exact decimal from 0.00 through 99,999,999.99, with at most two input fractional digits. Reject exponent notation, extra precision, NaN, and negative values. Store DECIMAL(10,2); return money as decimal strings.
 - BR-06: The server locks products and uses their current prices. Client expected prices only detect changes: reject the whole request if any differs, asking the user to review and submit a new request key. Snapshot product name, SKU, and price into each sale item.
@@ -42,7 +42,7 @@ Signed-out users can only reach login. Users are seeded/provisioned administrati
 - BR-12: Sale creation requires a unique request key and canonical payload fingerprint including actor, customer, sorted merged items, quantities, and expected prices. An exact retry returns the original sale, even if subsequently cancelled. Reusing the key with changed payload is a conflict.
 - BR-13: Customer is optional; NULL means anonymous. Customer names are required; optional email/phone are not unique. Do not automatically merge people by name or email.
 - BR-14: Product archival requires stock zero. Archived products cannot be sold or restocked. Cancellation can restore stock to an archived product without unarchiving it; a manager may correct its balance or restore it. History and inventory reports include it explicitly.
-- BR-15: Archived categories cannot receive new/reassigned products; existing active products in them remain sellable. Archived customers cannot be selected for new sales. Archival does not delete history. Restoring a product does not require restoring its category; changing category does require an active target category.
+- BR-15: Archived categories cannot receive new/reassigned products; existing active products in them remain sellable and their metadata remains editable without changing category. Archived customers cannot be selected for new sales. Archival does not delete history. Restoring a product does not require restoring its category; changing category does require an active target category.
 - BR-16: Category/product/customer edits submit expected version. Stale writes fail with no change. Each successful edit/archive/restore increments version; each stock transaction increments each affected product version once. A no-op archive/restore is an idempotent no-op.
 - BR-17: No physical delete UI or cascade deletion of business history. Users referenced by history are deactivated, not deleted.
 - BR-18: Store DATETIME values in UTC; display Asia/Dhaka. Convert selected local calendar date ranges into UTC [start, end) boundaries. Stable ordering uses timestamp plus ID.
@@ -53,16 +53,16 @@ Signed-out users can only reach login. Users are seeded/provisioned administrati
 
 | ID | Priority | Acceptance |
 |---|---|---|
-| FR-01 | Must | Login/logout using Laravel sessions/password hashing; active users only; generic failed-login response and throttling. |
+| FR-01 | Must | Login/logout using Laravel sessions/password hashing; active users only; generic failed-login response and throttling. Administrative password changes revoke existing sessions on their next protected request. |
 | FR-02 | Must | Enforce the permission matrix and CSRF protection on direct requests, not only navigation controls. |
 | FR-03 | Must | Manager category create/list/edit/archive/restore with normalization, duplicate handling, version conflicts. |
 | FR-04 | Must | Manager product CRUD through archive/restore, SKU/category/price/threshold validation; stock only through dedicated operations. |
 | FR-05 | Must | Customer create/list/edit; manager archival/restoration; optional customer on sale. |
 | FR-06 | Must | Manager restock/correction with ledger, reason, limits, retry handling, correction version check. |
-| FR-07 | Must | Multi-item sale with price review, stock locking, atomic commit and idempotency. |
+| FR-07 | Must | Multi-item sale with price review, stock locking, atomic commit and idempotency. Blade supports adding/removing up to 100 rows; failed submissions retain cart, customer, expected prices and request key. Editing a cart creates a new key. “Use current prices” explicitly accepts the displayed prices and starts a new request; unchanged replay retains the original receipt. |
 | FR-08 | Must | Sale detail/receipt with immutable item snapshots, derived exact total, actor, timestamp, cancellation status. |
 | FR-09 | Must | Manager full cancellation with reason, atomic once-only restoration and preserved history. |
-| FR-10 | Must | Search/filter catalog, customers and sales; page size default 20, maximum 100; allowlisted sorts with ID tie-breaker. |
+| FR-10 | Must | Search/filter catalog, customers and sales; page size default 20, maximum 100; page 1–1,000,000; search length at most 100; allowlisted sorts with ID tie-breaker. Invalid queries return validation errors without executing the list query. |
 | FR-11 | Must | Reports below, including empty ranges, archived records, and timezone boundaries. |
 | FR-12 | Must | Product movement timeline with reason, signed quantity, resulting stock, actor, timestamp, related sale where applicable. |
 | FR-13 | Must | Read-only reconciliation report flags stock/ledger and sale/movement inconsistencies; never silently repairs them. |
@@ -77,7 +77,7 @@ Signed-out users can only reach login. Users are seeded/provisioned administrati
 | Inventory | Every product's current quantity; explicit active/archived filter. Stock is not monetary valuation. |
 | Low stock | Active products where stock_on_hand <= reorder_level. Zero threshold includes zero stock. |
 | Recorded sales value | Sum of item quantity × snapshot price for currently completed sales whose created_at lies in the range. Later cancellation removes the original sale from past-period results; label this retrospective operational metric. |
-| Top products | Sum quantities/value grouped by product ID over that same completed-sale set. Do not join movements before summing. |
+| Top products | Sum quantities/value grouped by product ID over that same completed-sale set. Show current product name/SKU while computing value from snapshot prices; renaming/repricing never splits a product's totals. Do not join movements before summing. |
 | Customer history | All linked sales including cancelled, with status visible. Anonymous sales are separate records, not one customer's history. |
 | Movement report | All movements created in range, including reversals, regardless of current sale status. |
 | Reconciliation | For every product, stock_on_hand = COALESCE(SUM(all deltas),0); additionally check sale/cancellation linkage, counts and signed quantities. |
@@ -93,6 +93,10 @@ UC-03: manager cancels a sale. Lock the header, then products in ascending ID or
 UC-04: two clerks attempt the last unit. At most one sale commits; the other receives insufficient stock after acquiring the lock. Demonstrate with two independent database connections.
 
 UC-05: two product editors load version 5. One commits version 6; the other gets a conflict. Restocking between load/save also invalidates that edit rather than losing the new stock.
+
+Write requests reject unknown fields, including actor/stock setters. Writable IDs and versions must fit the server's signed 64-bit integer range; API response IDs, versions and unbounded aggregates are strings. Report dates default to the last 30 local calendar dates including today. Validate the effective range after defaults: real `YYYY-MM-DD` dates with end >= start. API validation returns 422; Blade redirects with errors.
+
+Failed stock forms retain only the submitted operation's quantity, reason, key and correction version. Retry an unchanged operation with that key; reset the forms to review a stale version or start a different operation. After bounded database retries are exhausted, return a retryable conflict without exposing SQL or its bindings.
 
 ## Nonfunctional requirements
 

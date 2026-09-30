@@ -56,4 +56,13 @@ final class AuthSessionTest extends TestCase
         $this->postJson('/api/v1/login', ['email' => 'nobody@example.test', 'password' => 'incorrect'])
             ->assertTooManyRequests()->assertJsonPath('error.code', 'rate_limited');
     }
+
+    public function test_password_reset_revokes_an_existing_session_even_before_its_first_protected_request(): void
+    {
+        $user = User::factory()->create(['email' => 'password-reset@example.test', 'password' => Hash::make('Before reset 123!')]);
+        $this->postJson('/api/v1/login', ['email' => $user->email, 'password' => 'Before reset 123!'])->assertOk();
+        $user->update(['password' => Hash::make('After reset 456!')]);
+        Auth::forgetGuards();
+        $this->getJson('/api/v1/me')->assertUnauthorized()->assertJsonPath('error.code', 'unauthenticated');
+    }
 }

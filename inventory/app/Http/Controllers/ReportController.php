@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\QueryRequest;
+use App\Http\Requests\ReportRequest;
 use App\Queries\ReportQuery;
-use Carbon\CarbonImmutable;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class ReportController extends Controller
 {
-    public function index(Request $request, ReportQuery $reports): View
+    public function index(ReportRequest $request, ReportQuery $reports): View
     {
-        $today = CarbonImmutable::now(config('nexastock.display_timezone'))->toDateString();
-        $start = $request->input('start', CarbonImmutable::parse($today)->subDays(29)->toDateString());
-        $end = $request->input('end', $today);
+        $start = $request->validated('start');
+        $end = $request->validated('end');
 
         return view('reports.index', [
             'inventory' => $reports->inventory($request->input('state', 'active')),
@@ -28,7 +27,7 @@ final class ReportController extends Controller
         ]);
     }
 
-    public function inventoryCsv(Request $request, ReportQuery $reports): StreamedResponse
+    public function inventoryCsv(QueryRequest $request, ReportQuery $reports): StreamedResponse
     {
         Gate::authorize('export-inventory');
         $rows = $reports->inventory($request->input('state', 'active'));
@@ -48,7 +47,7 @@ final class ReportController extends Controller
                 ]);
             }
             fclose($out);
-        }, 'nexastock-inventory.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }, 'crm-inventory.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     private function csvText(?string $value): string

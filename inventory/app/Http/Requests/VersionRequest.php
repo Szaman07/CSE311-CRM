@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\WholeNumber;
 
-class VersionRequest extends FormRequest
+class VersionRequest extends DomainRequest
 {
     public function authorize(): bool
     {
@@ -15,6 +15,6 @@ class VersionRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['expected_version' => ['required', 'integer', 'min:1']];
+        return ['expected_version' => ['required', new WholeNumber(1, PHP_INT_MAX)]];
     }
 }

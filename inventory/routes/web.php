@@ -15,7 +15,7 @@ Route::redirect('/', '/dashboard');
 Route::get('/login', [AuthController::class, 'create'])->middleware('guest')->name('login');
 Route::post('/login', [AuthController::class, 'store'])->middleware(['guest', 'throttle:5,1'])->name('login.store');
 
-Route::middleware(['auth', 'session.lifetime', 'active'])->group(function (): void {
+Route::middleware(['auth', 'session.lifetime', 'active', 'auth.session'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
@@ -53,7 +53,7 @@ Route::middleware(['auth', 'session.lifetime', 'active'])->group(function (): vo
 
 Route::prefix('api/v1')->name('api.')->group(function (): void {
     Route::post('/login', [AuthController::class, 'store'])->middleware(['guest', 'throttle:5,1'])->name('login');
-    Route::middleware(['auth', 'session.lifetime', 'active'])->group(function (): void {
+    Route::middleware(['auth', 'session.lifetime', 'active', 'auth.session'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
         Route::get('/me', [AuthController::class, 'current'])->name('me');
 

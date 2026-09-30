@@ -13,6 +13,7 @@ use App\Support\Canonical;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 final class SaleService
 {
@@ -193,10 +194,14 @@ final class SaleService
         }
         $merged = [];
         foreach ($submitted as $row) {
-            $id = (int) ($row['product_id'] ?? 0);
-            $quantity = (int) ($row['quantity'] ?? 0);
-            $price = Canonical::money((string) ($row['expected_unit_price'] ?? ''));
-            if ($id < 1 || $quantity < 1 || $quantity > 1_000_000) {
+            try {
+                if (! is_array($row) || ! is_string($row['expected_unit_price'] ?? null)) {
+                    throw new InvalidArgumentException('Invalid cart row.');
+                }
+                $id = Canonical::integer($row['product_id'] ?? null, 1, PHP_INT_MAX);
+                $quantity = Canonical::integer($row['quantity'] ?? null, 1, 1_000_000);
+                $price = Canonical::money($row['expected_unit_price']);
+            } catch (InvalidArgumentException) {
                 throw new DomainConflict('invalid_cart', 'Each cart row requires a product and valid quantity.');
             }
             if (isset($merged[$id])) {

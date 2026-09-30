@@ -1,6 +1,6 @@
 # Verification and requirement traceability
 
-This is a required implementation plan, not a report of tests already passing. Reference SQL and JSON parsing are documentation checks only. Run integration tests on the **actual XAMPP engine/version**, not SQLite as a substitute.
+This maps required checks to implementation evidence. Passing checks and remaining gates are recorded in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md). Reference SQL and JSON parsing are documentation checks only. Run integration tests on the **actual XAMPP engine/version**, not SQLite as a substitute.
 
 ## Requirement coverage
 
@@ -71,3 +71,26 @@ After fixture generation: record CPU/RAM/OS, PHP/framework/database versions, in
 Before release: fresh checkout install, migrate/seed, full critical suite, backup restore into a different database, browser walkthrough, dependency audit and documentation link check. CI uses the matching DB family/version; a PostgreSQL or SQLite-only green badge doesn't certify MariaDB behavior.
 
 Record results in `IMPLEMENTATION_STATUS.md` or a dated evidence artifact: date, commit, environment, command, expected/actual, pass/fail, artifact path. No invented screenshots, benchmark numbers or badges.
+
+## Audit regression coverage — 30 September 2026
+
+Method names below are in `inventory/tests/Feature/AuditRegressionTest.php` unless a different file is given. These supplement the original suite; they do not certify every proposed check above.
+
+| Requirement | Executed regression |
+|---|---|
+| FR-01, NFR-01 | `test_api_authentication_returns_json_even_without_accept_header`; `test_malformed_login_input_does_not_crash_the_following_login_page`; password-reset revocation in `AuthSessionTest` |
+| FR-02, NFR-01 | `test_unknown_write_fields_and_non_integer_quantities_are_rejected`; `test_csrf_denial_is_enforced_with_testing_bypass_disabled_and_writes_nothing`; sanitized database-error logging in `test_exhausted_contention_is_a_safe_retry_conflict_and_sql_bindings_are_not_logged` |
+| FR-03 | `test_category_edit_uses_the_submitted_version_and_rejects_stale_or_missing_versions` (API and Blade) |
+| FR-04 | `test_product_can_be_edited_in_its_archived_category_but_cannot_be_reassigned_to_another_archived_category` |
+| FR-06 | `test_stock_forms_preserve_only_the_submitted_operation_and_its_retry_version`; `ConcurrencyTest::test_concurrent_manual_stock_retries_create_one_movement` |
+| FR-07, NFR-02 | `test_failure_after_stock_update_rolls_back_header_items_stock_version_and_movements`; `test_sale_form_restores_original_cart_key_and_expected_prices_after_a_conflict`; original last-unit and same-key process races retained |
+| FR-07, FR-08 | `test_price_review_creates_a_new_sale_while_unchanged_replay_keeps_the_original_receipt`; browser keyboard activation of “Use current prices” returns explicit new-request feedback |
+| FR-09, NFR-02 | `ConcurrencyTest::test_concurrent_cancellations_restore_once_and_preserve_the_first_reason`; all four process races assert zero reconciliation drift and no sale/header inconsistencies |
+| FR-10, FR-11 | `test_invalid_queries_and_effective_date_ranges_return_validation_errors` |
+| FR-08, FR-11 | `test_top_products_groups_by_identity_and_keeps_snapshot_prices_and_receipts`; `test_sales_value_uses_half_open_dhaka_boundaries` with independently calculated expected totals |
+| FR-11, FR-13 | `test_report_api_serializes_ids_dates_and_aggregates_without_precision_loss` |
+| FR-14 | `test_csv_neutralizes_formula_text_quotes_fields_and_denies_clerks` |
+| NFR-05, NFR-06 | `tests/Unit/DatabaseSafetyTest.php` rejects wrong environment, connection, driver, database and `DB_URL` override before database setup; after verifying the isolated target, the guard checks the actual server is MariaDB before migrations. The same guard is applied to concurrency workers. |
+| FR-15, NFR-03 | Local rendered-cart browser check: add a fourth row with click/keyboard, select a product, edit quantity, remove a middle row, verify contiguous names and focus; add to 100 rows and verify Add disables, then remove one and verify it re-enables; inspect 360px/1280px layouts. Full keyboard workflow remains pending. |
+
+The injected contention exception verifies HTTP/logging behavior, not real engine retry exhaustion. Archive races and failures at every individual transaction checkpoint remain separate acceptance work.

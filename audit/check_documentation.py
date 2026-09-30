@@ -5,26 +5,48 @@ import json
 import re
 import sys
 from decimal import Decimal
+from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
 def check(condition, message):
     if not condition: errors.append(message)
 files = [ROOT / "README.md", ROOT / "inventory/README.md"]
 files += sorted((ROOT / "docs").rglob("*.md")) + sorted((ROOT / "theory").rglob("*.md"))
+
+def destinations(prose):
+    """Read angle-bracket and balanced-parenthesis Markdown destinations."""
+    for match in re.finditer(r"\[[^\]\n]+\]\(", prose):
+        start = match.end()
+        if prose[start:start + 1] == "<":
+            end = prose.find(">", start + 1)
+            if end >= 0:
+                yield prose[start + 1:end]
+            continue
+        depth, index = 1, start
+        while index < len(prose) and depth:
+            char = prose[index]
+            if char == "\\":
+                index += 2
+                continue
+            if char == "(": depth += 1
+            if char == ")": depth -= 1
+            index += 1
+        if depth == 0:
+            yield prose[start:index - 1].strip()
 link_count = 0
 fence = chr(96) * 3
 for path in files:
-    if not path.is_file():
-        check(False, f"Missing required document: {path.relative_to(ROOT)}")
-        continue
     body = path.read_text(encoding="utf-8-sig")
     check(body.count("\n" + fence) % 2 == 0, f"Unbalanced fences: {path.name}")
     prose = re.sub(fence + r"[\s\S]*?" + fence, "", body)
-    for raw in re.findall(r"\[[^\]]+\]\(([^)]+)\)", prose):
-        target = raw.strip("<>").split("#")[0]
+    # Retained editorial fragments are authored for output under docs/ by
+    # consolidate_learning_library.py; they are not standalone guide pages.
+    base = ROOT / "docs" if path.parent == ROOT / "docs/learning-library" else path.parent
+    for raw in destinations(prose):
+        target = unquote(raw.split("#")[0])
         if not target or re.match(r"https?://|mailto:", target): continue
         link_count += 1
-        check((path.parent / target).resolve().exists(), f"Missing link: {path.relative_to(ROOT)} -> {target}")
+        check((base / target).resolve().exists(), f"Missing link: {path.relative_to(ROOT)} -> {target}")
     check("\ufffd" not in body, f"Replacement character: {path.name}")
 srs = (ROOT / "docs/SRS.md").read_text(encoding="utf-8")
 tests = (ROOT / "docs/TEST_PLAN.md").read_text(encoding="utf-8")
@@ -68,7 +90,7 @@ def valid(value, spec):
     raise ValueError(f"Unsupported type: {spec}")
 check(valid(example,schema), "Sale example does not fit schema")
 cases = []
-for field,value in [("quantity",0),("quantity",1000001),("quantity",True),("expected_unit_price","1e2"),("expected_unit_price","1.001"),("expected_unit_price",10),("product_id",1)]:
+for field,value in [("quantity",0),("quantity",1000001),("quantity",True),("expected_unit_price","1e2"),("expected_unit_price","1.001"),("expected_unit_price",10),("product_id",1),("product_id","18446744073709551616")]:
     bad=copy.deepcopy(example); bad["items"][0][field]=value; cases.append(bad)
 bad=copy.deepcopy(example); bad["actor_id"]="1"; cases.append(bad)
 bad=copy.deepcopy(example); bad["items"]=[]; cases.append(bad)

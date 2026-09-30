@@ -2,7 +2,7 @@
 
 Implemented Laravel browser application and `/api/v1` adapter. [SRS](SRS.md) owns permissions and [OpenAPI](openapi.yaml) owns the HTTP description. [RecordSale JSON Schema](contracts/record-sale.schema.json) and [example](contracts/record-sale.example.json) describe the **normalized service input**, not literal HTML form encoding. Form Requests validate transport input; services canonicalize the allowlisted domain fields.
 
-IDs travel as decimal strings (including responses); quantities/versions within safe bounds may use integers, but version is also a decimal string by convention. Check IDs/versions against unsigned BIGINT maximum, not merely a regex. Prices/totals are decimal strings, dates ISO UTC strings in structured output. Browser forms accept one/two decimal places and normalize to exactly two; invalid precision is rejected, not rounded.
+IDs travel as decimal strings in responses. Writable IDs and versions must fit PHP's signed 64-bit integer range (1–9,223,372,036,854,775,807); the database's unsigned BIGINT storage range is wider. Numeric ID input is accepted for compatibility, but JavaScript callers should use strings. Booleans, floats, exponent notation, and out-of-range whole numbers are rejected before casts. Version responses, money, and unbounded report aggregates are decimal strings; report timestamps are ISO UTC strings. Product price input accepts up to two fractional places and is normalized; sale expected prices use exactly two.
 
 ## Route map
 
@@ -42,10 +42,10 @@ Manual stock canonical object includes actor_id, product_id, operation, quantity
 
 An initial sale returns HTTP 201 when JSON is requested:
 ```json
-{"data":{"sale_id":"42","status":"completed","total":"70.00","currency":"BDT"},"replayed":false}
+{"data":{"id":"42","status":"completed","total":"70.00","currency":"BDT"},"replayed":false}
 ```
 
-Exact retry: HTTP 200, same sale ID, replayed true; current cancellation state is included. Browser success uses a 303 redirect to the receipt. Cancellation/restock success follows the same redirect pattern to sale/product detail. Errors do not contain SQL, stack traces, password hashes, or tokens.
+Exact retry: HTTP 200, same sale ID, replayed true; current cancellation state is included. Browser success uses Laravel's 302 redirect to the receipt. Cancellation/restock success redirects to sale/product detail. Errors do not contain SQL, stack traces, password hashes, or tokens. Database exception logs include only request ID and engine error codes, excluding SQL bindings.
 
 | Condition | JSON response | Blade behavior |
 |---|---|---|
@@ -58,10 +58,12 @@ Exact retry: HTTP 200, same sale ID, replayed true; current cancellation state i
 | Retryable DB contention exhausted | 409, code retry_later | Retry prompt preserving original key |
 | Unexpected internal error | 500, request_id | Generic failure and request ID |
 
-Example conflict: {"error":{"code":"insufficient_stock","product_id":"1","message":"Review the available quantity."}}. Only disclose store data to active staff. Errors can include the latest authorized quantity/price, but client must review before submitting a changed request.
+Example conflict: {"error":{"code":"insufficient_stock","context":{"product_id":"1","stock_on_hand":0},"message":"A product does not have enough stock."}}. Only disclose store data to active staff. Errors can include the latest authorized quantity/price, but client must review before submitting a changed request.
 
 ## Shared validation
 
-Names and notes use their DDL lengths; required strings cannot be whitespace. Email is format-checked; blank optional email/phone becomes NULL. No uploads or external product URLs in core. SKU and category normalization are defined in DATABASE_DESIGN. Search text max 100 characters; page positive integer, per_page 1–100 (default 20); sorts mapped to fixed columns. Parameter binding covers values, not arbitrary SQL identifiers.
+Names and notes use their DDL lengths; required strings cannot be whitespace. Email is format-checked; blank optional email/phone becomes NULL. Write requests reject unknown fields, including actor and direct-stock fields; Blade's `_token` and `_method` are transport metadata. No uploads or external product URLs in core. SKU and category normalization are defined in DATABASE_DESIGN. Search text max 100 characters; page 1–1,000,000, per_page 1–100 (default 20); sorts mapped to fixed columns. Invalid arrays, filters, and page bounds return validation errors. Parameter binding covers values, not arbitrary SQL identifiers.
 
-Date filters use valid calendar dates with start <= end. UI end date is inclusive; convert to midnight of the following local day then UTC for exclusive SQL upper bound. Export cells are properly CSV-quoted and text fields beginning with =, +, -, @ or leading control/whitespace followed by those are neutralized; test the exported artifact in the intended spreadsheet tool.
+Date filters use valid calendar dates with start <= end, checked after applying the defaults (today minus 29 days through today in Dhaka). UI end date is inclusive; convert to midnight of the following local day then UTC for exclusive SQL upper bound. Export cells are properly CSV-quoted and text fields beginning with =, +, -, @ or leading control/whitespace followed by those are neutralized; test the exported artifact in the intended spreadsheet tool.
+
+Top products returns one row per product ID, labelled with its current name/SKU. Units and recorded value are calculated from completed-sale snapshots; renaming a product does not split its totals or rewrite receipts. API aggregate counts/balances are strings when their sum can exceed an individual row's bounds.

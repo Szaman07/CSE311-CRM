@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('content')
 <div class="heading"><h1>Product catalog</h1><a class="button" href="{{ route('sales.create') }}">Record sale</a></div>
-<form method="get" class="filters"><label>Search<input name="q" value="{{ request('q') }}" maxlength="100"></label><label>State<select name="state"><option value="active">Active</option><option value="all" @selected(request('state')==='all')>All</option><option value="archived" @selected(request('state')==='archived')>Archived</option></select></label><label>Sort<select name="sort"><option value="name">Name</option><option value="sku">SKU</option><option value="stock">Stock</option><option value="price">Price</option></select></label><button>Apply</button></form>
+<form method="get" class="filters"><label>Search<input name="q" value="{{ request('q') }}" maxlength="100"></label><label>State<select name="state"><option value="active">Active</option><option value="all" @selected(request('state')==='all')>All</option><option value="archived" @selected(request('state')==='archived')>Archived</option></select></label><label>Sort<select name="sort"><option value="name">Name</option><option value="sku" @selected(request('sort')==='sku')>SKU</option><option value="stock" @selected(request('sort')==='stock')>Stock</option><option value="price" @selected(request('sort')==='price')>Price</option></select></label><button>Apply</button></form>
 @if(auth()->user()->isManager())
 <details class="panel"><summary>Add product</summary><form method="post" action="{{ route('products.store') }}" class="grid-form">@csrf
 <label>Category<select name="category_id" required>@foreach($categories as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></label>

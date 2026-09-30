@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\StockMovement;
 use App\Models\User;
+use App\Queries\ReportQuery;
 use App\Services\CategoryService;
 use App\Services\ProductService;
+use App\Services\SaleService;
 use App\Services\StockService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +54,30 @@ final class ConcurrencyTest extends TestCase
         $this->assertSame(1, Sale::count());
     }
 
+    public function test_concurrent_cancellations_restore_once_and_preserve_the_first_reason(): void
+    {
+        [$manager, $product] = $this->stockedProduct(1);
+        $sale = app(SaleService::class)->record($manager, null, [['product_id' => $product->id, 'quantity' => 1, 'expected_unit_price' => '9.99']], (string) Str::uuid());
+        $results = $this->race($manager, $sale, ['First reason', 'Other reason'], 'cancel');
+        $this->assertSame(['cancelled', 'cancelled'], collect($results)->pluck('result')->all());
+        $this->assertCount(1, collect($results)->pluck('sale_id')->unique());
+        $this->assertSame(1, $product->fresh()->stock_on_hand);
+        $this->assertSame(1, StockMovement::where('reason', 'cancellation')->count());
+        $this->assertSame($sale->fresh()->cancel_reason, StockMovement::where('reason', 'cancellation')->value('note'));
+        $this->assertSame($manager->id, $sale->fresh()->cancelled_by);
+    }
+
+    public function test_concurrent_manual_stock_retries_create_one_movement(): void
+    {
+        [$manager, $product] = $this->stockedProduct(1);
+        $key = (string) Str::uuid();
+        $results = $this->race($manager, $product, [$key, $key], 'restock');
+        $this->assertSame(['restocked', 'restocked'], collect($results)->pluck('result')->all());
+        $this->assertCount(1, collect($results)->pluck('movement_id')->unique());
+        $this->assertSame(2, $product->fresh()->stock_on_hand);
+        $this->assertSame(2, StockMovement::where('reason', 'restock')->count());
+    }
+
     private function stockedProduct(int $stock): array
     {
         $manager = User::factory()->manager()->create();
@@ -61,18 +88,18 @@ final class ConcurrencyTest extends TestCase
         return [$manager, $product];
     }
 
-    private function race(User $manager, Product $product, array $keys): array
+    private function race(User $manager, Product|Sale $target, array $keys, string $operation = 'sale'): array
     {
         $dir = storage_path('framework/testing/'.Str::uuid());
         mkdir($dir, 0777, true);
         $processes = [];
 
         DB::beginTransaction();
-        Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
+        $target->newQuery()->whereKey($target->id)->lockForUpdate()->firstOrFail();
         try {
             foreach ($keys as $index => $key) {
                 $ready = $dir."/ready-{$index}";
-                $process = new Process([PHP_BINARY, base_path('tests/Support/sale_worker.php'), (string) $manager->id, (string) $product->id, '1', '9.99', $key, $ready], base_path(), ['APP_ENV' => 'testing']);
+                $process = new Process([PHP_BINARY, base_path('tests/Support/sale_worker.php'), (string) $manager->id, (string) $target->id, '1', '9.99', $key, $ready, $operation], base_path(), ['APP_ENV' => 'testing']);
                 $process->setTimeout(15);
                 $process->start();
                 $processes[] = [$process, $ready];
@@ -89,11 +116,18 @@ final class ConcurrencyTest extends TestCase
             DB::commit();
         }
 
-        return array_map(function (array $entry): array {
+        $results = array_map(function (array $entry): array {
             $entry[0]->wait();
             $this->assertSame(0, $entry[0]->getExitCode(), $entry[0]->getErrorOutput().$entry[0]->getOutput());
 
             return json_decode($entry[0]->getOutput(), true, flags: JSON_THROW_ON_ERROR);
         }, $processes);
+
+        $report = app(ReportQuery::class)->reconciliation();
+        $this->assertTrue($report['balances']->every(fn ($row) => (int) $row->difference === 0));
+        $this->assertCount(0, $report['sale_link_issues']);
+        $this->assertCount(0, $report['empty_sale_ids']);
+
+        return $results;
     }
 }

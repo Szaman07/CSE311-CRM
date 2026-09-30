@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CancelSaleRequest;
+use App\Http\Requests\QueryRequest;
 use App\Http\Requests\RecordSaleRequest;
 use App\Models\Customer;
 use App\Models\Product;
@@ -11,11 +12,12 @@ use App\Services\SaleService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 final class SaleController extends Controller
 {
-    public function index(Request $request): View
+    public function index(QueryRequest $request): View
     {
         $status = $request->input('status');
         $sales = Sale::with(['customer', 'creator', 'items'])
@@ -34,11 +36,23 @@ final class SaleController extends Controller
         return view('sales.index', compact('sales'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $old = $request->session()->getOldInput();
+        $cartItems = [];
+        foreach (is_array($old['items'] ?? null) ? array_slice($old['items'], 0, 100) : [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $cartItems[] = array_map(fn ($value) => is_string($value) || is_int($value) ? $value : '', array_intersect_key($row, array_flip(['product_id', 'quantity', 'expected_unit_price'])));
+        }
+
         return view('sales.create', [
             'products' => Product::whereNull('archived_at')->orderBy('name')->orderBy('id')->get(),
             'customers' => Customer::whereNull('archived_at')->orderBy('full_name')->orderBy('id')->get(),
+            'cartItems' => $cartItems ?: [['quantity' => 1]],
+            'selectedCustomer' => is_scalar($old['customer_id'] ?? null) ? (string) $old['customer_id'] : '',
+            'requestKey' => is_string($old['request_key'] ?? null) && Str::isUuid($old['request_key']) ? $old['request_key'] : (string) Str::uuid(),
         ]);
     }
 

@@ -14,3 +14,6 @@ Thumbs.db
 # Detailed private planning notes; keep the public repository focused on the implementation.
 /AUDIT_VERDICT_AND_12_WEEK_PLAN.md
 /inventory/docs/FUTURE_PORTFOLIO_PLAN.md
+/tmp/
+__pycache__/
+*.pyc

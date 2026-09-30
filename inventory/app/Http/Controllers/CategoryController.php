@@ -3,18 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CategoryRequest;
+use App\Http\Requests\QueryRequest;
 use App\Http\Requests\VersionRequest;
 use App\Models\Category;
 use App\Services\CategoryService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 final class CategoryController extends Controller
 {
-    public function index(Request $request): View
+    public function index(QueryRequest $request): View
     {
-        return view('categories.index', ['categories' => Category::withCount('products')->orderBy('name')->orderBy('id')->paginate(min(100, max(1, (int) $request->input('per_page', 20))))]);
+        return view('categories.index', ['categories' => Category::withCount('products')->orderBy('name')->orderBy('id')->paginate((int) $request->input('per_page', 20))->withQueryString()]);
     }
 
     public function store(CategoryRequest $request, CategoryService $service): RedirectResponse

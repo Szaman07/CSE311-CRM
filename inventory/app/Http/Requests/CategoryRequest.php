@@ -3,9 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\Category;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\WholeNumber;
 
-class CategoryRequest extends FormRequest
+class CategoryRequest extends DomainRequest
 {
     public function authorize(): bool
     {
@@ -18,6 +18,9 @@ class CategoryRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['name' => ['required', 'string', 'max:80']];
+        return [
+            'name' => ['required', 'string', 'max:80'],
+            'expected_version' => [$this->isMethod('post') ? 'nullable' : 'required', new WholeNumber(1, PHP_INT_MAX)],
+        ];
     }
 }

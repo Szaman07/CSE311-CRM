@@ -43,10 +43,10 @@ final class ProductService
         try {
             return DB::transaction(function () use ($product, $data, $expectedVersion): Product {
                 $category = Category::lockForUpdate()->findOrFail($data['category_id']);
-                if ($category->archived_at) {
+                $locked = Product::lockForUpdate()->findOrFail($product->id);
+                if ($category->archived_at && $locked->category_id !== $category->id) {
                     throw new DomainConflict('category_inactive', 'Choose an active category.');
                 }
-                $locked = Product::lockForUpdate()->findOrFail($product->id);
                 $this->assertVersion($locked->version, $expectedVersion);
                 $locked->fill([
                     'category_id' => $category->id,

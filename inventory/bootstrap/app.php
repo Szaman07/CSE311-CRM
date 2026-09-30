@@ -6,11 +6,13 @@ use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\RequestCorrelation;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -27,6 +29,29 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e): bool => $request->is('api/*') || $request->expectsJson());
+
+        $exceptions->report(function (QueryException $e): bool {
+            // QueryException messages include SQL bindings, which may contain customer data.
+            Log::error('Database request failed.', [
+                'request_id' => request()->attributes->get('request_id'),
+                'sqlstate' => $e->errorInfo[0] ?? null,
+                'driver_code' => $e->errorInfo[1] ?? null,
+            ]);
+
+            return false;
+        });
+
+        $exceptions->render(function (QueryException $e, Request $request) {
+            if (! in_array($e->errorInfo[1] ?? null, [1205, 1213], true)) {
+                return null;
+            }
+            $message = 'The database is busy. Retry the unchanged request with the same request key.';
+            if (! ($request->is('api/*') || $request->expectsJson())) {
+                return back()->withInput()->withErrors(['operation' => $message]);
+            }
+
+            return response()->json(['error' => ['code' => 'retry_later', 'message' => $message, 'request_id' => $request->attributes->get('request_id')]], 409);
+        });
 
         $exceptions->render(function (DomainConflict $e, Request $request) {
             if (! ($request->is('api/*') || $request->expectsJson())) {

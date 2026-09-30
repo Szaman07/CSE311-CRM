@@ -3,9 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\Customer;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\WholeNumber;
 
-class CustomerRequest extends FormRequest
+class CustomerRequest extends DomainRequest
 {
     public function authorize(): bool
     {
@@ -22,7 +22,7 @@ class CustomerRequest extends FormRequest
             'full_name' => ['required', 'string', 'max:120'],
             'email' => ['nullable', 'email:rfc', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'expected_version' => [$this->isMethod('post') ? 'nullable' : 'required', 'integer', 'min:1'],
+            'expected_version' => [$this->isMethod('post') ? 'nullable' : 'required', new WholeNumber(1, PHP_INT_MAX)],
         ];
     }
 }

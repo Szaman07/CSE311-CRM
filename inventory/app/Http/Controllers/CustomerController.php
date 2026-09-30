@@ -3,18 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CustomerRequest;
+use App\Http\Requests\QueryRequest;
 use App\Http\Requests\VersionRequest;
 use App\Models\Customer;
 use App\Queries\ReportQuery;
 use App\Services\CustomerService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 final class CustomerController extends Controller
 {
-    public function index(Request $request): View
+    public function index(QueryRequest $request): View
     {
         $customers = Customer::when($request->filled('q'), fn (Builder $q) => $q->where(fn (Builder $x) => $x->where('full_name', 'like', '%'.$request->string('q')->limit(100).'%')->orWhere('email', 'like', '%'.$request->string('q')->limit(100).'%')))
             ->orderBy('full_name')->orderBy('id')->paginate(min(100, max(1, (int) $request->input('per_page', 20))))->withQueryString();
@@ -29,7 +29,7 @@ final class CustomerController extends Controller
         return back()->with('success', 'Customer created.');
     }
 
-    public function show(Request $request, Customer $customer, ReportQuery $reports): View
+    public function show(QueryRequest $request, Customer $customer, ReportQuery $reports): View
     {
         return view('customers.show', ['customer' => $customer, 'sales' => $reports->customerHistory($customer, (int) $request->input('per_page', 20))]);
     }

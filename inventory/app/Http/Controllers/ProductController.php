@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProductRequest;
+use App\Http\Requests\QueryRequest;
 use App\Http\Requests\VersionRequest;
 use App\Models\Category;
 use App\Models\Product;
@@ -10,11 +11,12 @@ use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 final class ProductController extends Controller
 {
-    public function index(Request $request): View
+    public function index(QueryRequest $request): View
     {
         $sorts = ['name' => 'name', 'sku' => 'sku', 'stock' => 'stock_on_hand', 'price' => 'unit_price'];
         $sort = $sorts[$request->input('sort')] ?? 'name';
@@ -29,12 +31,29 @@ final class ProductController extends Controller
         return view('products.index', ['products' => $products, 'categories' => Category::whereNull('archived_at')->orderBy('name')->get()]);
     }
 
-    public function show(Product $product): View
+    public function show(Request $request, Product $product): View
     {
+        $old = $request->session()->getOldInput();
+        $scalar = fn (string $field, string|int $default = '') => is_string($old[$field] ?? null) || is_int($old[$field] ?? null) ? $old[$field] : $default;
+        $form = function (string $quantityField) use ($old, $scalar, $product): array {
+            $submitted = array_key_exists($quantityField, $old);
+            $key = $submitted ? $scalar('request_key') : '';
+
+            return [
+                'request_key' => Str::isUuid($key) ? $key : (string) Str::uuid(),
+                'quantity' => $submitted ? $scalar($quantityField) : '',
+                'note' => $submitted ? $scalar('note') : '',
+                'expected_version' => $submitted ? $scalar('expected_version', $product->version) : $product->version,
+            ];
+        };
+
         return view('products.show', [
             'product' => $product->load('category'),
-            'categories' => Category::whereNull('archived_at')->orderBy('name')->orderBy('id')->get(),
+            'categories' => Category::whereNull('archived_at')->orWhere('id', $product->category_id)->orderBy('name')->orderBy('id')->get(),
             'movements' => $product->movements()->with(['actor', 'saleItem'])->latest('created_at')->latest('id')->paginate(20),
+            'restockForm' => $form('quantity'),
+            'adjustmentForm' => $form('quantity_delta'),
+            'hasStockInput' => array_key_exists('quantity', $old) || array_key_exists('quantity_delta', $old),
         ]);
     }
 

@@ -51,9 +51,10 @@ final class ReportQuery
         [$from, $until] = LocalDateRange::toUtc($start, $end);
 
         return DB::table('sales as s')->join('sale_items as i', 'i.sale_id', '=', 's.id')
+            ->join('products as p', 'p.id', '=', 'i.product_id')
             ->where('s.status', 'completed')->where('s.created_at', '>=', $from)->where('s.created_at', '<', $until)
-            ->groupBy('i.product_id', 'i.product_sku', 'i.product_name')
-            ->select('i.product_id', 'i.product_sku', 'i.product_name')
+            ->groupBy('i.product_id', 'p.sku', 'p.name')
+            ->select('i.product_id', 'p.sku as product_sku', 'p.name as product_name')
             ->selectRaw('SUM(i.quantity) AS units')
             ->selectRaw('CAST(SUM(i.quantity*i.unit_price) AS DECIMAL(22,2)) AS recorded_value')
             ->orderByDesc('units')->orderBy('i.product_id')->limit($limit)->get();

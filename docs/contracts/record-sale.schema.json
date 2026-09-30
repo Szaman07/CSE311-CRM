@@ -55,8 +55,8 @@
   "$defs": {
     "id": {
       "type": "string",
-      "pattern": "^[1-9][0-9]{0,19}$",
-      "description": "Also validate <=18446744073709551615 on the server; never cast through JS Number."
+      "pattern": "^[1-9][0-9]{0,18}$",
+      "description": "Also validate <=9223372036854775807 on the server; never cast through JS Number."
     }
   }
 }

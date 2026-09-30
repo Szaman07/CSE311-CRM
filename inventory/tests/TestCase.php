@@ -3,17 +3,17 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Tests\Support\DatabaseSafety;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function setUp(): void
+    public function createApplication()
     {
-        parent::setUp();
+        $app = parent::createApplication();
 
-        if (! app()->environment('testing')
-            || config('database.default') !== 'mariadb'
-            || config('database.connections.mariadb.database') !== 'nexastock_test') {
-            throw new \RuntimeException('Tests are locked to the isolated nexastock_test MariaDB database.');
-        }
+        // This runs before RefreshDatabase or any other database setup trait.
+        DatabaseSafety::assertSafe($app);
+
+        return $app;
     }
 }

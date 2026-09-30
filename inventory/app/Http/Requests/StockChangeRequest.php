@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\WholeNumber;
 
-class StockChangeRequest extends FormRequest
+class StockChangeRequest extends DomainRequest
 {
     public function authorize(): bool
     {
@@ -17,8 +17,8 @@ class StockChangeRequest extends FormRequest
 
         return [
             'request_key' => ['required', 'uuid'],
-            $adjustment ? 'quantity_delta' : 'quantity' => ['required', 'integer', $adjustment ? 'between:-1000000,1000000' : 'between:1,1000000', $adjustment ? 'not_in:0' : 'min:1'],
-            'expected_version' => [$adjustment ? 'required' : 'nullable', 'integer', 'min:1'],
+            $adjustment ? 'quantity_delta' : 'quantity' => ['required', new WholeNumber($adjustment ? -1_000_000 : 1, 1_000_000), 'not_in:0'],
+            'expected_version' => [$adjustment ? 'required' : 'nullable', new WholeNumber(1, PHP_INT_MAX)],
             'note' => ['required', 'string', 'max:500'],
         ];
     }

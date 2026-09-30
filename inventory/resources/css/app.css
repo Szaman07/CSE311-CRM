@@ -43,7 +43,7 @@ th, td { padding: .75rem; border-bottom: 1px solid #e6ebf2; text-align: left; ve
 th { background: #eef4fb; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
 .badge { display: inline-block; padding: .18rem .5rem; border-radius: 999px; background: #fff1d6; color: #7a2e0e; font-size: .75rem; }
 .two-col { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 1rem; }
-.cart-row { display: grid; grid-template-columns: 3fr 1fr; gap: .75rem; padding: .75rem; background: #f7f9fc; border-radius: 8px; }
+.cart-row { display: grid; grid-template-columns: minmax(0,3fr) minmax(0,1fr) auto; gap: .75rem; padding: .75rem; background: #f7f9fc; border-radius: 8px; align-items: end; }
 summary { cursor: pointer; font-weight: 750; }
 @media (max-width: 720px) {
   .topbar { align-items: flex-start; flex-direction: column; }

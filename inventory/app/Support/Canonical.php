@@ -7,6 +7,19 @@ use Normalizer;
 
 final class Canonical
 {
+    public static function integer(mixed $value, int $minimum, int $maximum): int
+    {
+        if ((! is_int($value) && ! is_string($value)) || ! preg_match('/^-?(0|[1-9][0-9]*)$/D', (string) $value)) {
+            throw new InvalidArgumentException('A whole number is required.');
+        }
+        $integer = filter_var($value, FILTER_VALIDATE_INT);
+        if ($integer === false || $integer < $minimum || $integer > $maximum) {
+            throw new InvalidArgumentException('The whole number is outside the supported range.');
+        }
+
+        return $integer;
+    }
+
     public static function text(string $value): string
     {
         $value = trim($value);

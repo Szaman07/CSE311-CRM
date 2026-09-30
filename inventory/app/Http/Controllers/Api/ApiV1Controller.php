@@ -7,13 +7,16 @@ use App\Http\Requests\CancelSaleRequest;
 use App\Http\Requests\CategoryRequest;
 use App\Http\Requests\CustomerRequest;
 use App\Http\Requests\ProductRequest;
+use App\Http\Requests\QueryRequest;
 use App\Http\Requests\RecordSaleRequest;
+use App\Http\Requests\ReportRequest;
 use App\Http\Requests\StockChangeRequest;
 use App\Http\Requests\VersionRequest;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\MovementResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\ReportResource;
 use App\Http\Resources\SaleResource;
 use App\Models\Category;
 use App\Models\Customer;
@@ -33,9 +36,9 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class ApiV1Controller extends Controller
 {
-    public function categories(Request $request): AnonymousResourceCollection
+    public function categories(QueryRequest $request): AnonymousResourceCollection
     {
-        return CategoryResource::collection(Category::orderBy('name')->orderBy('id')->paginate($this->perPage($request)));
+        return CategoryResource::collection(Category::orderBy('name')->orderBy('id')->paginate($this->perPage($request))->withQueryString());
     }
 
     public function createCategory(CategoryRequest $request, CategoryService $service): JsonResponse
@@ -58,7 +61,7 @@ final class ApiV1Controller extends Controller
         return new CategoryResource($service->setArchived($request->user(), $category, false, (int) $request->validated('expected_version')));
     }
 
-    public function products(Request $request): AnonymousResourceCollection
+    public function products(QueryRequest $request): AnonymousResourceCollection
     {
         $sorts = ['name' => 'name', 'sku' => 'sku', 'stock' => 'stock_on_hand', 'price' => 'unit_price'];
         $state = $request->input('state', 'active');
@@ -110,12 +113,12 @@ final class ApiV1Controller extends Controller
         return (new MovementResource($movement->load('actor')))->additional(['replayed' => ! $movement->wasRecentlyCreated])->response()->setStatusCode($movement->wasRecentlyCreated ? 201 : 200);
     }
 
-    public function movements(Request $request, Product $product): AnonymousResourceCollection
+    public function movements(QueryRequest $request, Product $product): AnonymousResourceCollection
     {
         return MovementResource::collection($product->movements()->with(['actor', 'saleItem'])->orderByDesc('created_at')->orderByDesc('id')->paginate($this->perPage($request)));
     }
 
-    public function customers(Request $request): AnonymousResourceCollection
+    public function customers(QueryRequest $request): AnonymousResourceCollection
     {
         $query = Customer::when($request->filled('q'), fn (Builder $q) => $q->where(fn (Builder $x) => $x->where('full_name', 'like', '%'.mb_substr($request->input('q'), 0, 100).'%')->orWhere('email', 'like', '%'.mb_substr($request->input('q'), 0, 100).'%')))
             ->orderBy('full_name')->orderBy('id');
@@ -128,7 +131,7 @@ final class ApiV1Controller extends Controller
         return new CustomerResource($customer);
     }
 
-    public function customerSales(Request $request, Customer $customer, ReportQuery $reports): JsonResponse
+    public function customerSales(QueryRequest $request, Customer $customer, ReportQuery $reports): JsonResponse
     {
         $page = $reports->customerHistory($customer, $this->perPage($request));
 
@@ -161,7 +164,7 @@ final class ApiV1Controller extends Controller
         return new CustomerResource($service->setArchived($request->user(), $customer, false, (int) $request->validated('expected_version')));
     }
 
-    public function sales(Request $request): AnonymousResourceCollection
+    public function sales(QueryRequest $request): AnonymousResourceCollection
     {
         $query = Sale::with(['customer', 'items'])->when(in_array($request->input('status'), ['completed', 'cancelled'], true), fn (Builder $q) => $q->where('status', $request->input('status')))
             ->when($request->filled('q'), function (Builder $query) use ($request): void {
@@ -195,20 +198,16 @@ final class ApiV1Controller extends Controller
         return new SaleResource($service->cancel($request->user(), $sale, $request->validated('reason')));
     }
 
-    public function report(Request $request, string $report, ReportQuery $reports): JsonResponse
+    public function report(ReportRequest $request, string $report, ReportQuery $reports): JsonResponse
     {
-        $today = now(config('nexastock.display_timezone'))->toDateString();
-        $dates = in_array($report, ['sales-value', 'top-products'], true)
-            ? $request->validate(['start' => ['nullable', 'date_format:Y-m-d'], 'end' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start']])
-            : [];
-        $start = $dates['start'] ?? now(config('nexastock.display_timezone'))->subDays(29)->toDateString();
-        $end = $dates['end'] ?? $today;
+        $start = $request->validated('start');
+        $end = $request->validated('end');
         $data = match ($report) {
-            'inventory' => $reports->inventory($request->input('state', 'active')),
-            'low-stock' => $reports->lowStock(),
+            'inventory' => $reports->inventory($request->input('state', 'active'))->map(ReportResource::inventory(...)),
+            'low-stock' => $reports->lowStock()->map(ReportResource::lowStock(...)),
             'sales-value' => ['total' => $reports->recordedSalesValue($start, $end), 'currency' => 'BDT'],
-            'top-products' => $reports->topProducts($start, $end, min(100, max(1, (int) $request->input('limit', 10)))),
-            'reconciliation' => $reports->reconciliation(),
+            'top-products' => $reports->topProducts($start, $end, (int) $request->input('limit', 10))->map(ReportResource::topProduct(...)),
+            'reconciliation' => ReportResource::reconciliation($reports->reconciliation()),
             default => abort(404),
         };
 

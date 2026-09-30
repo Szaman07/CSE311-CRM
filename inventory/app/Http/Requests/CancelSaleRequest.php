@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class CancelSaleRequest extends FormRequest
+class CancelSaleRequest extends DomainRequest
 {
     public function authorize(): bool
     {
